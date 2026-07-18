@@ -1,0 +1,14 @@
+<!-- public/brand/favicon.svg — VeriCV gradient square + white V -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- 135° gradient: hsl(172 83% 43%) → hsl(215 31% 18%) -->
+  <!-- Hex approx: #13C9B0 → #202C3C -->
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#13C9B0"></stop>
+      <stop offset="100%" stop-color="#202C3C"></stop>
+    </linearGradient>
+  </defs>
+
+  <rect x="32" y="32" width="448" height="448" rx="64" fill="url(#g)"></rect>
+  <text x="256" y="292" text-anchor="middle" dominant-baseline="middle" font-family="Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif" font-size="300" font-weight="700" fill="#FFFFFF">V</text>
+</svg>

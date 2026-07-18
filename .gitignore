@@ -1,0 +1,34 @@
+@"
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+backend/.env
+
+# Python / Django
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+*.sqlite3
+.pytest_cache/
+.mypy_cache/
+backend/media/
+
+# Node / React / Vite
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+.next/
+.parcel-cache/
+.turbo/
+
+# Operating system
+.DS_Store
+Thumbs.db
+"@ | Set-Content -Encoding utf8 .gitignore

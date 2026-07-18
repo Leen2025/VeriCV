@@ -1,0 +1,233 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* VeriCV Design System - Modern tech platform with teal and dark blue theme */
+
+@layer base {
+  :root {
+    /* Base colors */
+    --background: 0 0% 100%;
+    --foreground: 215 31% 18%;
+
+    /* Card system */
+    --card: 0 0% 100%;
+    --card-foreground: 215 31% 18%;
+
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 31% 18%;
+
+    /* Brand colors - Teal to Dark Blue system */
+    --primary: 172 83% 43%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 172 83% 60%;
+
+    /* Secondary system */
+    --secondary: 215 31% 95%;
+    --secondary-foreground: 215 31% 18%;
+
+    /* Muted system */
+    --muted: 215 31% 95%;
+    --muted-foreground: 215 20% 46%;
+
+    /* Accent system */
+    --accent: 215 31% 95%;
+    --accent-foreground: 215 31% 18%;
+
+    /* Status colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    /* UI elements */
+    --border: 215 31% 91%;
+    --input: 215 31% 91%;
+    --ring: 172 83% 43%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(172 83% 43%), hsl(215 31% 18%));
+    --gradient-secondary: linear-gradient(135deg, hsl(215 31% 95%), hsl(0 0% 100%));
+    --gradient-hero: linear-gradient(135deg, hsl(172 83% 43% / 0.1), hsl(215 31% 18% / 0.05));
+
+    /* Shadows */
+    --shadow-soft: 0 1px 3px 0 hsl(215 31% 18% / 0.1), 0 1px 2px -1px hsl(215 31% 18% / 0.1);
+    --shadow-medium: 0 4px 6px -1px hsl(215 31% 18% / 0.1), 0 2px 4px -2px hsl(215 31% 18% / 0.1);
+    --shadow-large: 0 10px 15px -3px hsl(215 31% 18% / 0.1), 0 4px 6px -4px hsl(215 31% 18% / 0.1);
+    --shadow-glow: 0 0 40px hsl(172 83% 43% / 0.3);
+
+    /* Animations */
+    --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 215 31% 8%;
+    --foreground: 210 40% 98%;
+
+    --card: 215 31% 8%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 215 31% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 172 83% 60%;
+    --primary-foreground: 215 31% 8%;
+
+    --secondary: 215 31% 15%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 215 31% 15%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 215 31% 15%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 31% 15%;
+    --input: 215 31% 15%;
+    --ring: 172 83% 60%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Gradient utilities */
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+  
+  .gradient-hero {
+    background: var(--gradient-hero);
+  }
+
+  /* Shadow utilities */
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  
+  .shadow-medium {
+    box-shadow: var(--shadow-medium);
+  }
+  
+  .shadow-large {
+    box-shadow: var(--shadow-large);
+  }
+  
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Animation utilities */
+  .transition-fast {
+    transition: var(--transition-fast);
+  }
+  
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+  
+  .transition-bounce {
+    transition: var(--transition-bounce);
+  }
+
+  /* Card hover effects */
+  .card-hover {
+    @apply transition-smooth hover:shadow-medium hover:-translate-y-1;
+  }
+
+  /* Button glow effect */
+  .button-glow {
+    @apply relative overflow-hidden;
+  }
+  
+  .button-glow::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+  }
+  
+  .button-glow:hover::before {
+    left: 100%;
+  }
+}
+
+@layer utilities {
+  /* Custom keyframes */
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+  
+  @keyframes glow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite;
+  }
+  
+  .animate-slide-in {
+    animation: slideIn 0.5s ease-out;
+  }
+}
