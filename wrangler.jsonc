@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "vericv",
+  "main": "./worker/index.js",
+  "compatibility_date": "2026-07-25",
+
+  "assets": {
+    "directory": "./frontend/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api",
+      "/api/*"
+    ]
+  },
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["Backend"]
+    },
+    {
+      "tag": "v2",
+      "deleted_classes": ["Backend"]
+    }
+  ]
+}

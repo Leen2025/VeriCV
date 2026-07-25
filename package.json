@@ -1,0 +1,27 @@
+{
+  "name": "vericv-v2-main",
+  "version": "1.0.0",
+  "description": "[Explore VeriCV on Bind.link](https://bind.link/@vericv)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Leen2025/VeriCV.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Leen2025/VeriCV/issues"
+  },
+  "homepage": "https://github.com/Leen2025/VeriCV#readme",
+  "dependencies": {
+    "@cloudflare/containers": "^0.3.7"
+  },
+  "devDependencies": {
+    "wrangler": "^4.114.0"
+  }
+}
