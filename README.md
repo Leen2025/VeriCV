@@ -1,5 +1,5 @@
 # VeriCV 
-## **AI Powered Resume Intelligence Platform**
+## Your CV. Your Skills. Verified.
 ###  Holberton School Saudi Arabia  
 #### Cohort 1 (Feb – Nov 2025)
 
@@ -20,9 +20,9 @@
 <img width="302" height="297" alt="Image" src="https://github.com/user-attachments/assets/2ccbd793-084e-4900-bd6f-f581892452f8" />
 
 #  VeriCV  
-## Smarter Interview Preparation with AI  
+## Your CV. Your Skills. Verified.  
 
-**Transform your CV into personalized, AI-driven interview practice.**  
+**Upload your CV, validate your skills, and match to real jobs.**  
 Empowering graduates and job seekers with data-driven feedback and confidence.
 
 _Developed by Holberton School × Tuwaiq Academy_ 🇸🇦
