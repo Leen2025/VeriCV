@@ -77,7 +77,7 @@ const LandingPage = () => {
               VeriCV
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground mb-4">
-              See where your skills shine.
+              Your CV. Your Skills. Verified.
             </p>
             <p className="text-lg md:text-xl text-muted-foreground mb-12">
               Upload your CV, validate your skills, and match to real jobs.
@@ -101,7 +101,7 @@ const LandingPage = () => {
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">How it works</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Get a verified view of your skills and your fit for any role.
+              A verified view of your skills — and your fit for any role.
             </p>
           </div>
 
@@ -157,7 +157,7 @@ const LandingPage = () => {
       {/* CTA Section */}
       <section className="py-20 gradient-hero">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to get started?</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to get verified?</h2>
           <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
             Upload your CV, verify your skills, and get a job match score in minutes.
           </p>

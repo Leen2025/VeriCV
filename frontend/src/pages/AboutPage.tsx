@@ -45,7 +45,7 @@ const AboutPage = () => {
           setCvCount(data.count.toLocaleString());
           return;
         }
-      } catch {}
+      } catch { }
       if (!mounted) return;
       const lastId = localStorage.getItem("last_cv_id");
       const approx = lastId ? parseInt(String(lastId), 10) : NaN;
@@ -69,8 +69,11 @@ const AboutPage = () => {
       {/* Hero */}
       <section className="gradient-hero py-20">
         <div className="container mx-auto px-4 text-center max-w-4xl">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">About VeriCV</h1>
-          <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">About VeriCV</h1>
+          <p className="text-xl md:text-2xl font-semibold mb-6">
+            Your CV. Your Skills. Verified.
+          </p>
+          <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
             We help you discover, validate, and communicate your skills. VeriCV turns your CV into a clear skill profile,
             tailored quizzes, and feedback you can act on.
           </p>
@@ -110,25 +113,25 @@ const AboutPage = () => {
             </p>
           </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          {features.map((feature) => (
-            <Card key={feature.title} className="card-hover">
-              <CardHeader>
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 gradient-primary rounded-lg flex items-center justify-center">
-                    <feature.icon className="w-6 h-6 text-white" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+            {features.map((feature) => (
+              <Card key={feature.title} className="card-hover">
+                <CardHeader>
+                  <div className="flex items-center space-x-4">
+                    <div className="w-12 h-12 gradient-primary rounded-lg flex items-center justify-center">
+                      <feature.icon className="w-6 h-6 text-white" />
+                    </div>
+                    <CardTitle className="text-xl">{feature.title}</CardTitle>
                   </div>
-                  <CardTitle className="text-xl">{feature.title}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground leading-relaxed">
-                  {feature.description}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground leading-relaxed">
+                    {feature.description}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -181,9 +184,9 @@ const AboutPage = () => {
       {/* CTA */}
       <section className="py-20 gradient-hero">
         <div className="container mx-auto px-4 text-center max-w-2xl">
-          <h2 className="text-3xl font-bold mb-4">Ready to Discover Your Potential?</h2>
+          <h2 className="text-3xl font-bold mb-4">Ready to Verify Your Skills?</h2>
           <p className="text-lg text-muted-foreground mb-8">
-            Join candidates using VeriCV to validate skills and target better-fit roles.
+            Upload your CV to validate your skills and target better-fit roles.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
