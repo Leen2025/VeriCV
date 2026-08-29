@@ -195,7 +195,7 @@ if DEBUG:
     ]
 else:
     CORS_ALLOWED_ORIGINS = [
-        "https://vericv.app",
+        "https://vericv.net",
         "http://104.248.136.7",
     ]
 
