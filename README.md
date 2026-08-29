@@ -6,7 +6,7 @@
 
 [Explore VeriCV on Bind.link](https://bind.link/@vericv)
 
-**Our Website:**  https://vericv.app 
+**Our Website:**  https://vericv.net 
 
 **Team Members**  
 - Leen Mohammed Alsaleh
