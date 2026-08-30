@@ -3,9 +3,10 @@ from rest_framework import status, generics, permissions
 from rest_framework.views import APIView
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView as SimpleJWTRefreshView
+from .serializers import UserSerializer
 
 
 
@@ -82,3 +83,12 @@ class CustomTokenRefreshView(SimpleJWTRefreshView):
     Allows frontend to refresh tokens easily.
     """
     permission_classes = [AllowAny]
+
+
+class MeView(APIView):
+    """Returns the currently authenticated user's basic info (used e.g. to name downloaded reports)."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data)

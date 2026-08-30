@@ -16,7 +16,7 @@ import {
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { toast } from "@/components/ui/sonner";
-import { addHistory, getHistoryDetail } from "@/api/endpoints";
+import { addHistory, getHistoryDetail, getMe } from "@/api/endpoints";
 
 console.log("ResultsPage loaded from:", import.meta.url);
 
@@ -29,6 +29,18 @@ export default function ResultsPage() {
     overall?: number;
     skills?: Array<{ skill: string; score: number; category?: string }>;
   } | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const me = await getMe();
+        setUsername(me.username || null);
+      } catch {
+        /* not logged in or endpoint unavailable — filename falls back below */
+      }
+    })();
+  }, []);
 
   // ✅ Fallback: load from localStorage if state is empty
   if (!state?.overallScore && !state?.overall && !state?.skills) {
@@ -178,7 +190,7 @@ export default function ResultsPage() {
         skillsAnalyzed[s] = 0;
       }
     }
-    const position = (state?.position || state?.jobTitle || state?.title || "CV Assessment") as string;
+    const position = (state?.position || state?.jobTitle || state?.title || "CV Quiz") as string;
 
     (async () => {
       try {
@@ -210,13 +222,19 @@ export default function ResultsPage() {
     return pdf.output("blob");
   };
 
+  const reportFilename = (): string => {
+    const base = username && username.trim() ? username.trim() : "vericv-user";
+    const safe = base.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+    return `${safe || "vericv-user"}-results.pdf`;
+  };
+
   const downloadReport = async () => {
     try {
       const blob = await renderReportToPdfBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "vericv-results.pdf";
+      a.download = reportFilename();
       a.click();
       URL.revokeObjectURL(url);
       toast("Results PDF downloaded");
@@ -229,7 +247,7 @@ export default function ResultsPage() {
   const shareResults = async () => {
     try {
       const blob = await renderReportToPdfBlob();
-      const file = new File([blob], "vericv-results.pdf", { type: "application/pdf" });
+      const file = new File([blob], reportFilename(), { type: "application/pdf" });
       // Prefer Web Share API with files
       if ((navigator as any).canShare && (navigator as any).canShare({ files: [file] }) && (navigator as any).share) {
         await (navigator as any).share({
@@ -284,7 +302,7 @@ export default function ResultsPage() {
               <CardContent className="p-8 text-center">
                 <div className="flex items-center justify-center space-x-8">
                   <div>
-                    <div className="text-5xl font-bold gradient-primary bg-clip-text text-transparent mb-2">
+                    <div className="text-5xl font-bold text-primary mb-2">
                       {summarized.overallScore}%
                     </div>
                     <p className="text-muted-foreground">Overall Score</p>
@@ -454,7 +472,3 @@ export default function ResultsPage() {
     </div>
   );
 }
-
-
-
-

@@ -61,6 +61,11 @@ export function logout() {
 
 export { isAuthed };
 
+export async function getMe(): Promise<{ id: number; username: string; first_name: string }> {
+  const { data } = await api.get("users/me/");
+  return data;
+}
+
 /* =====================
    CV Upload
    ===================== */
