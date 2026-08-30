@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +62,7 @@ function computeTopSkill(list: Assessment[]): string | null {
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const {
     data: summaryRaw,
     isLoading: summaryLoading,
@@ -314,7 +315,11 @@ export default function DashboardPage() {
                           const score = typeof a?.score === "number" && !Number.isNaN(a.score) ? `${a.score}%` : "0%";
                           const skills = Array.isArray(a?.skills) ? a.skills.slice(0, 4) : [];
                           return (
-                            <tr key={String(a.id ?? idx)} className="border-t">
+                            <tr
+                              key={String(a.id ?? idx)}
+                              className="border-t cursor-pointer hover:bg-muted/50"
+                              onClick={() => a.id != null && navigate(`/assessments/${a.id}`)}
+                            >
                               <td className="py-2 pr-3 whitespace-nowrap">
                                 {date && !Number.isNaN(date.getTime())
                                   ? date.toLocaleDateString()
@@ -365,7 +370,11 @@ export default function DashboardPage() {
                           const score = typeof a?.score === "number" && !Number.isNaN(a.score) ? `${a.score}%` : "0%";
                           const missing = Array.isArray(a?.missing_keywords) ? a.missing_keywords.slice(0, 4) : [];
                           return (
-                            <tr key={String(a.id ?? idx)} className="border-t">
+                            <tr
+                              key={String(a.id ?? idx)}
+                              className="border-t cursor-pointer hover:bg-muted/50"
+                              onClick={() => a.id != null && navigate(`/assessments/${a.id}`)}
+                            >
                               <td className="py-2 pr-3 whitespace-nowrap">
                                 {date && !Number.isNaN(date.getTime())
                                   ? date.toLocaleDateString()
