@@ -42,7 +42,7 @@ const LandingPage = () => {
     {
       icon: Brain,
       title: "Personalized Quizzes",
-      description: "Assessments tailored to your exact skill profile.",
+      description: "Quizzes tailored to your exact skill profile.",
     },
     {
       icon: Target,

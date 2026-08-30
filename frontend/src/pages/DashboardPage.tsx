@@ -260,7 +260,7 @@ export default function DashboardPage() {
         ) : (
           <Card className="shadow-large">
             <CardHeader>
-              <CardTitle>Recent Assessments</CardTitle>
+              <CardTitle>Recent Quizzes</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">

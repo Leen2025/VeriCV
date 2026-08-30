@@ -18,7 +18,7 @@ const AboutPage = () => {
       icon: Target,
       title: "Personalized Skill Quiz",
       description:
-        "Assessments are tailored to your profile so questions are always relevant to you.",
+        "Quizzes are tailored to your profile so questions are always relevant to you.",
     },
     {
       icon: Zap,
