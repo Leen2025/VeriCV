@@ -4,10 +4,12 @@ import { saveTokens, clearTokens, isAuthed } from "./auth";
 // Types for history endpoints
 export type Assessment = {
   id?: number | string;
+  kind?: "quiz" | "match";
   date?: string | null;
   title?: string;
   score?: number | null;
   skills?: string[];
+  missing_keywords?: string[];
   status?: string;
   // allow extra fields without breaking
   [key: string]: any;

@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Activity,
   RefreshCcw,
+  Target,
 } from "lucide-react";
 import { getHistorySummary, getHistoryList, type Assessment, type HistorySummary } from "@/api/endpoints";
 
@@ -27,15 +28,18 @@ function normalizeAssessment(a: any): Assessment {
         .map((s: any) => (typeof s === "string" ? s : s?.name ?? s?.label ?? ""))
         .filter(Boolean)
     : [];
+  const missingKeywords: string[] = Array.isArray(a?.missing_keywords) ? a.missing_keywords : [];
 
   return {
+    ...a,
     id: a?.id ?? a?.pk ?? a?.uuid ?? undefined,
+    kind: a?.kind === "match" ? "match" : "quiz",
     date: typeof a?.date === "string" ? a.date : a?.date_created ?? a?.created_at ?? a?.timestamp ?? null,
     title: a?.title ?? a?.name ?? a?.position ?? a?.filename ?? "Assessment",
     score: typeof a?.score === "number" ? a.score : a?.average_score ?? a?.overall_score ?? a?.result?.score ?? null,
     skills,
+    missing_keywords: missingKeywords,
     status: a?.status ?? a?.state ?? undefined,
-    ...a,
   };
 }
 
@@ -81,12 +85,23 @@ export default function DashboardPage() {
   const loading = summaryLoading || listLoading;
   const hasError = summaryError || listError;
 
-  const assessments = useMemo(() => {
+  const quizzes = useMemo(() => {
     const arr = Array.isArray(listRaw) ? listRaw : [];
     const normalized = arr.map(normalizeAssessment);
-    // Safety net: only include quiz-like entries
     return normalized.filter((a: any) => {
-      if (a?.kind && a.kind !== "quiz") return false;
+      if (a.kind !== "quiz") return false;
+      const hasScore = typeof a?.score === "number" && !Number.isNaN(a.score);
+      const hasDate = !!a?.date;
+      const hasTitle = typeof a?.title === "string" && a.title.trim().length > 0;
+      return hasScore || (hasDate && hasTitle);
+    });
+  }, [listRaw]);
+
+  const matches = useMemo(() => {
+    const arr = Array.isArray(listRaw) ? listRaw : [];
+    const normalized = arr.map(normalizeAssessment);
+    return normalized.filter((a: any) => {
+      if (a.kind !== "match") return false;
       const hasScore = typeof a?.score === "number" && !Number.isNaN(a.score);
       const hasDate = !!a?.date;
       const hasTitle = typeof a?.title === "string" && a.title.trim().length > 0;
@@ -96,30 +111,35 @@ export default function DashboardPage() {
 
   const totalAssessments = useMemo(() => {
     const total = (summaryRaw?.total ?? summaryRaw?.total_assessments ?? (summaryRaw as any)?.assessments) as number | undefined;
-    return typeof total === "number" ? total : assessments.length;
-  }, [summaryRaw, assessments.length]);
+    return typeof total === "number" ? total : quizzes.length;
+  }, [summaryRaw, quizzes.length]);
+
+  const totalMatches = useMemo(() => {
+    const total = (summaryRaw as any)?.matches as number | undefined;
+    return typeof total === "number" ? total : matches.length;
+  }, [summaryRaw, matches.length]);
 
   const averageScore = useMemo(() => {
     const s = (summaryRaw?.average_score ?? summaryRaw?.avg_score) as number | undefined;
     if (typeof s === "number") return s;
-    const nums = assessments.map((a) => toNumber(a.score, NaN)).filter((v) => !Number.isNaN(v));
+    const nums = quizzes.map((a) => toNumber(a.score, NaN)).filter((v) => !Number.isNaN(v));
     if (!nums.length) return 0;
     return Math.round(nums.reduce((acc, v) => acc + v, 0) / nums.length);
-  }, [summaryRaw, assessments]);
+  }, [summaryRaw, quizzes]);
 
   const lastActivity = useMemo(() => {
     const d = (summaryRaw?.last_activity ?? summaryRaw?.last_assessment_date) as string | undefined;
     if (d) return d;
-    const dates = assessments
+    const dates = quizzes
       .map((a) => (a.date ? new Date(a.date) : null))
       .filter((x): x is Date => x instanceof Date && !Number.isNaN(x.getTime()))
       .sort((a, b) => b.getTime() - a.getTime());
     return dates[0]?.toISOString() ?? null;
-  }, [summaryRaw, assessments]);
+  }, [summaryRaw, quizzes]);
 
   const topSkill = useMemo(() => {
-    return (summaryRaw?.top_skill as string | undefined) ?? computeTopSkill(assessments);
-  }, [summaryRaw, assessments]);
+    return (summaryRaw?.top_skill as string | undefined) ?? computeTopSkill(quizzes);
+  }, [summaryRaw, quizzes]);
 
   if (loading) {
     return (
@@ -162,7 +182,7 @@ export default function DashboardPage() {
     );
   }
 
-  const isEmpty = !assessments.length;
+  const isEmpty = !quizzes.length && !matches.length;
 
   return (
     <div className="min-h-screen bg-gradient-hero py-8">
@@ -208,6 +228,20 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 gradient-primary rounded-lg flex items-center justify-center">
+                  <Target className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{totalMatches}</p>
+                  <p className="text-sm text-muted-foreground">Job Matches</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-medium">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 gradient-primary rounded-lg flex items-center justify-center">
                   <TrendingUp className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -241,7 +275,7 @@ export default function DashboardPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Star className="w-5 h-5" />
-                Get started with your first assessment
+                Get started with your first quiz
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -258,57 +292,111 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="shadow-large">
-            <CardHeader>
-              <CardTitle>Recent Quizzes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-muted-foreground">
-                    <tr className="text-left">
-                      <th className="py-2 pr-3 font-medium">Date</th>
-                      <th className="py-2 pr-3 font-medium">Score</th>
-                      <th className="py-2 pr-3 font-medium">Top Skills</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {assessments.slice(0, 10).map((a, idx) => {
-                      const date = a?.date ? new Date(a.date) : null;
-                      const score = typeof a?.score === "number" && !Number.isNaN(a.score) ? `${a.score}%` : "0%";
-                      const skills = Array.isArray(a?.skills) ? a.skills.slice(0, 4) : [];
-                      return (
-                        <tr key={String(a.id ?? idx)} className="border-t">
-                          <td className="py-2 pr-3 whitespace-nowrap">
-                            {date && !Number.isNaN(date.getTime())
-                              ? date.toLocaleDateString()
-                              : "N/A"}
-                          </td>
-                          <td className="py-2 pr-3">{score}</td>
-                          <td className="py-2 pr-3">
-                            <div className="flex flex-wrap gap-1">
-                              {skills.map((s) => (
-                                <Badge key={s} variant="outline" className="text-xs">
-                                  {s}
-                                </Badge>
-                              ))}
-                              {Array.isArray(a?.skills) && a.skills.length > 4 && (
-                                <Badge variant="outline" className="text-xs">+{a.skills.length - 4} more</Badge>
-                              )}
-                            </div>
-                          </td>
-                          
+          <div className="space-y-6">
+            {quizzes.length > 0 && (
+              <Card className="shadow-large">
+                <CardHeader>
+                  <CardTitle>Recent Quizzes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="text-muted-foreground">
+                        <tr className="text-left">
+                          <th className="py-2 pr-3 font-medium">Date</th>
+                          <th className="py-2 pr-3 font-medium">Score</th>
+                          <th className="py-2 pr-3 font-medium">Top Skills</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                      </thead>
+                      <tbody>
+                        {quizzes.slice(0, 10).map((a, idx) => {
+                          const date = a?.date ? new Date(a.date) : null;
+                          const score = typeof a?.score === "number" && !Number.isNaN(a.score) ? `${a.score}%` : "0%";
+                          const skills = Array.isArray(a?.skills) ? a.skills.slice(0, 4) : [];
+                          return (
+                            <tr key={String(a.id ?? idx)} className="border-t">
+                              <td className="py-2 pr-3 whitespace-nowrap">
+                                {date && !Number.isNaN(date.getTime())
+                                  ? date.toLocaleDateString()
+                                  : "N/A"}
+                              </td>
+                              <td className="py-2 pr-3">{score}</td>
+                              <td className="py-2 pr-3">
+                                <div className="flex flex-wrap gap-1">
+                                  {skills.map((s) => (
+                                    <Badge key={s} variant="outline" className="text-xs">
+                                      {s}
+                                    </Badge>
+                                  ))}
+                                  {Array.isArray(a?.skills) && a.skills.length > 4 && (
+                                    <Badge variant="outline" className="text-xs">+{a.skills.length - 4} more</Badge>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {matches.length > 0 && (
+              <Card className="shadow-large">
+                <CardHeader>
+                  <CardTitle>Recent Job Matches</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="text-muted-foreground">
+                        <tr className="text-left">
+                          <th className="py-2 pr-3 font-medium">Date</th>
+                          <th className="py-2 pr-3 font-medium">Position</th>
+                          <th className="py-2 pr-3 font-medium">Match Score</th>
+                          <th className="py-2 pr-3 font-medium">Missing Keywords</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {matches.slice(0, 10).map((a, idx) => {
+                          const date = a?.date ? new Date(a.date) : null;
+                          const score = typeof a?.score === "number" && !Number.isNaN(a.score) ? `${a.score}%` : "0%";
+                          const missing = Array.isArray(a?.missing_keywords) ? a.missing_keywords.slice(0, 4) : [];
+                          return (
+                            <tr key={String(a.id ?? idx)} className="border-t">
+                              <td className="py-2 pr-3 whitespace-nowrap">
+                                {date && !Number.isNaN(date.getTime())
+                                  ? date.toLocaleDateString()
+                                  : "N/A"}
+                              </td>
+                              <td className="py-2 pr-3">{a.title || "—"}</td>
+                              <td className="py-2 pr-3">{score}</td>
+                              <td className="py-2 pr-3">
+                                <div className="flex flex-wrap gap-1">
+                                  {missing.map((s) => (
+                                    <Badge key={s} variant="outline" className="text-xs">
+                                      {s}
+                                    </Badge>
+                                  ))}
+                                  {missing.length === 0 && (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
       </div>
     </div>
   );
 }
-

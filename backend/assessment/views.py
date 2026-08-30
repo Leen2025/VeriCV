@@ -26,11 +26,20 @@ class AssessmentSummaryView(APIView):
                     all_skills[skill] = max(all_skills.get(skill, 0), float(score))
         top_skill = max(all_skills, key=all_skills.get) if all_skills else None
 
+        matches = Assessment.objects.filter(user=user, kind="match")
+        matches_count = matches.count()
+        avg_match_score = matches.aggregate(Avg("average_score"))["average_score__avg"] or 0
+        last_match = matches.order_by("-date_created").first()
+        last_match_date = last_match.date_created if last_match else None
+
         return Response({
             "assessments": count,
             "average_score": round(avg_score, 1),
             "top_skill": top_skill,
             "last_activity": last_date,
+            "matches": matches_count,
+            "average_match_score": round(avg_match_score, 1),
+            "last_match_activity": last_match_date,
         })
 
 
@@ -38,7 +47,12 @@ class AssessmentListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        assessments = Assessment.objects.filter(user=request.user, kind="quiz").order_by("-date_created")
+        # Optional ?kind=quiz or ?kind=match to filter; omit to get both.
+        kind = request.query_params.get("kind")
+        qs = Assessment.objects.filter(user=request.user)
+        if kind in ("quiz", "match"):
+            qs = qs.filter(kind=kind)
+        assessments = qs.order_by("-date_created")
         serializer = AssessmentSerializer(assessments, many=True)
         return Response(serializer.data)
     
@@ -81,7 +95,7 @@ class AssessmentDetailView(APIView):
 
     def get(self, request, pk: int):
         try:
-            a = Assessment.objects.get(id=pk, user=request.user, kind="quiz")
+            a = Assessment.objects.get(id=pk, user=request.user)
         except Assessment.DoesNotExist:
             return Response({"error": "Not found"}, status=404)
 
