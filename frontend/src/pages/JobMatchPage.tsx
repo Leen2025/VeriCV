@@ -115,7 +115,7 @@ const JobMatchPage = () => {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Job Matcher</h1>
+        <h1 className="text-4xl font-bold mb-2">Job Match</h1>
         <p className="text-muted-foreground">Upload your CV and job description to find out how well you match</p>
       </div>
 

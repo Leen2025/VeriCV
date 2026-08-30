@@ -254,7 +254,7 @@ export default function ResultsPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <Trophy className="w-16 h-16 gradient-primary text-white p-3 rounded-full mx-auto mb-4 shadow-glow" />
-          <h1 className="text-3xl md:text-4xl font-bold mb-4">Your Assessment Results</h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-4">Your Quiz Results</h1>
           <p className="text-lg text-muted-foreground">
             Here&apos;s your personalized skill analysis and improvement roadmap
           </p>

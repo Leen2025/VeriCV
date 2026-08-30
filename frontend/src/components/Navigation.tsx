@@ -56,7 +56,7 @@ const Navigation = () => {
   const navItems = [
     { name: "Home", href: "/", icon: Home, show: true },
     { name: "Upload CV", href: "/upload", icon: FileText, show: authed },
-    { name: "Match Jobs", href: "/matcher", icon: Target, show: authed },
+    { name: "Job Match", href: "/matcher", icon: Target, show: authed },
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, show: authed },
     { name: "About", href: "/about", icon: Info, show: true },
   ].filter((i) => i.show);

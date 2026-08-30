@@ -36,7 +36,7 @@ const LandingPage = () => {
   const features = [
     {
       icon: FileText,
-      title: "Smart CV Analysis",
+      title: "AI-Powered CV Analysis",
       description: "AI-powered extraction of technical and soft skills from your CV.",
     },
     {

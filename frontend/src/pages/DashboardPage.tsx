@@ -184,7 +184,7 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{totalAssessments}</p>
-                  <p className="text-sm text-muted-foreground">Assessments</p>
+                  <p className="text-sm text-muted-foreground">Quizzes</p>
                 </div>
               </div>
             </CardContent>

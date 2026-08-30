@@ -85,7 +85,7 @@ export default function AssessmentResultPage() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Your Assessment Results</h1>
+        <h1 className="text-2xl font-bold">Your Quiz Results</h1>
         <p className="text-slate-600">Here's your personalized skill analysis and improvement roadmap</p>
       </div>
 
