@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import api from "@/api"; // Axios instance
-import { isAuthenticated } from "@/utils/auth";
+import api from "@/api/http";
+import { isAuthenticated, saveTokens, clearTokens } from "@/utils/auth";
+
 // Type definition for context
 type AuthContextType = {
   authed: boolean;
@@ -8,6 +9,7 @@ type AuthContextType = {
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 };
+
 // Create context
 const AuthContext = createContext<AuthContextType>({
   authed: false,
@@ -15,14 +17,15 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   logout: () => {},
 });
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [authed, setAuthed] = useState<boolean>(isAuthenticated());
-  // :brain: :one: Login
+
+  // Login
   const login = async (username: string, password: string) => {
     try {
-      const res = await api.post("users/token/", { username, password });
-      localStorage.setItem("access", res.data.access);
-      localStorage.setItem("refresh", res.data.refresh);
+      const res = await api.post("token/", { username, password });
+      saveTokens(res.data.access, res.data.refresh);
       setAuthed(true);
     } catch (err: any) {
       console.error("Login failed:", err.response?.data || err.message);
@@ -30,38 +33,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       throw err;
     }
   };
-  // :door: :two: Logout
+
+  // Logout
   const logout = () => {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
+    clearTokens();
     setAuthed(false);
   };
-  // :arrows_counterclockwise: :three: Token Refresh Function
-  const refreshAccessToken = async () => {
-    const refresh = localStorage.getItem("refresh");
-    if (!refresh) {
-      logout();
-      return;
-    }
-    try {
-      const res = await api.post("users/token/refresh/", { refresh });
-      localStorage.setItem("access", res.data.access);
-      setAuthed(true);
-    } catch (err: any) {
-      console.warn("Token refresh failed:", err.response?.data || err.message);
-      logout();
-    }
-  };
-  // :alarm_clock: :four: Periodic token refresh (every 4 minutes)
-  useEffect(() => {
-    if (authed) {
-      const interval = setInterval(() => {
-        refreshAccessToken();
-      }, 4 * 60 * 1000); // 4 minutes
-      return () => clearInterval(interval);
-    }
-  }, [authed]);
-  // :package: :five: React to storage or CV updates across tabs
+
+  // React to storage or CV updates across tabs — this also picks up
+  // the case where api/http.ts's interceptor clears tokens itself
+  // after a failed refresh attempt on a real 401.
   useEffect(() => {
     const onStorage = () => setAuthed(isAuthenticated());
     const onCvUpdated = () => setAuthed(isAuthenticated());
@@ -72,10 +53,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       window.removeEventListener("vericv:cv-updated", onCvUpdated);
     };
   }, []);
+
   return (
     <AuthContext.Provider value={{ authed, setAuthed, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
+
 export const useAuth = () => useContext(AuthContext);

@@ -1,5 +1,5 @@
 import api from "./http";
-import { saveTokens, clearTokens, isAuthed } from "./auth";
+import { saveTokens, clearTokens, isAuthenticated as isAuthed } from "@/utils/auth";
 
 // Types for history endpoints
 export type Assessment = {
