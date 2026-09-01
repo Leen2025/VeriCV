@@ -65,7 +65,7 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
+      <section id="hero" className="relative overflow-hidden scroll-mt-20">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-5"
           style={{ backgroundImage: `url(${heroImage})` }}
@@ -158,17 +158,9 @@ const LandingPage = () => {
       <section className="py-20 gradient-hero">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to get verified?</h2>
-          <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Upload your CV, verify your skills, and get a job match score in minutes.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild variant="hero" size="xl">
-              <Link to="/upload">Upload CV</Link>
-            </Button>
-            <Button asChild variant="hero" size="xl">
-              <Link to="/matcher">Match CV to Job</Link>
-            </Button>
-          </div>
+          <Button asChild variant="hero" size="xl">
+            <a href="#hero">Try it now!</a>
+          </Button>
         </div>
       </section>
     </div>

@@ -283,10 +283,15 @@ export default function DashboardPage() {
               <p className="text-muted-foreground">
                 Upload a CV to generate insights and track progress over time.
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Button asChild variant="hero">
                   <Link to="/upload">
                     <FileText className="w-4 h-4 mr-2" /> Upload CV
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link to="/matcher">
+                    <Target className="w-4 h-4 mr-2" /> Match CV to Job
                   </Link>
                 </Button>
               </div>
