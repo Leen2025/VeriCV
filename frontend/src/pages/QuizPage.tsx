@@ -24,6 +24,7 @@ export default function QuizPage() {
   const [status, setStatus] = useState<QuizState>("generating");
   const [error, setError] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [quizId, setQuizId] = useState<number | null>(null);
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number | string>>({});
   const [timeLeft, setTimeLeft] = useState(10 * 60); // 10 minutes
@@ -97,6 +98,11 @@ export default function QuizPage() {
         if (cvId) {
           const data = await aiGenerateFromCVId(cvId);
           const qs = normalize(data);
+
+          if (typeof data?.quiz_id === "number") {
+            setQuizId(data.quiz_id);
+          }
+
           if (!qs.length) throw new Error("No questions were generated. Please try again.");
           if (mounted) {
             setQuestions(qs);
@@ -141,21 +147,17 @@ export default function QuizPage() {
   const submit = async () => {
     setStatus("submitting");
     try {
-      // Build payload for backend (keep var names)
+      if (!quizId) {
+        throw new Error("Quiz ID is missing.");
+      }
+
       const payload = questions.map((q, idx) => ({
-        question: q.question,
+        question_id: Number(q.id),
         answer: answers[idx],
-        correct_index:
-          typeof q.correctAnswer === "number"
-            ? q.correctAnswer
-            : typeof (q as any).correct_index === "number"
-              ? (q as any).correct_index
-              : undefined,
-        skill: q.skill,
-        category: q.category,
       }));
-      // Use backend scoring if available
-      const data = await submitAnswers(payload);
+
+      // Use backend scoring and persist the result
+      const data = await submitAnswers(quizId, payload);
       // Local fallback calculation (kept intact)
       const total = questions.filter(
         (q) => Array.isArray(q.options) && typeof q.correctAnswer === "number"
@@ -222,6 +224,11 @@ export default function QuizPage() {
     try {
       const data = await aiGenerateFromFileSmart(pdfFile);
       const qs = normalize(data);
+
+      if (typeof data?.quiz_id === "number") {
+        setQuizId(data.quiz_id);
+      }
+
       if (!qs.length) throw new Error("No questions were generated from the PDF.");
       setQuestions(qs);
       setCurrent(0);
@@ -405,12 +412,3 @@ export default function QuizPage() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-

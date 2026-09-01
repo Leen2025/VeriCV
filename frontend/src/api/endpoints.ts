@@ -144,8 +144,21 @@ export async function aiSubmitAnswers(
   return data;
 }
 
-export async function submitAnswers(answers: any) {
-  const { data } = await api.post("ai/submit/", { answers });
+export async function submitAnswers(
+  quizId: number,
+  answers: Array<{
+    question_id: number;
+    answer: number | string;
+  }>
+) {
+  const { data } = await api.post(
+    "ai/submit/",
+    {
+      quiz_id: quizId,
+      answers,
+    }
+  );
+
   return data;
 }
 
