@@ -289,7 +289,7 @@ export default function DashboardPage() {
                     <FileText className="w-4 h-4 mr-2" /> Upload CV
                   </Link>
                 </Button>
-                <Button asChild variant="outline">
+                <Button asChild variant="hero">
                   <Link to="/matcher">
                     <Target className="w-4 h-4 mr-2" /> Match CV to Job
                   </Link>

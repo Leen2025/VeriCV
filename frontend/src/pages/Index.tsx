@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* VeriCV Design System - Modern tech platform with teal and dark blue theme */
 
 @layer base {
   :root {
