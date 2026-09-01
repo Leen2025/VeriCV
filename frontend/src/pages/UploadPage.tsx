@@ -2,17 +2,82 @@
 import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileText, CheckCircle, X, LogIn, ArrowRight } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Upload,
+  FileText,
+  CheckCircle,
+  LogIn,
+  ArrowRight,
+  Loader2,
+  RotateCcw,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { uploadCV, aiGenerateFromCVId } from "@/api/endpoints";
 
 type UploadState = "idle" | "uploading" | "success" | "error" | "unauth";
+// "uploading" covers two real backend calls — track which one is active
+// so the button label always tells the truth about what's happening.
+type UploadStage = "uploading" | "analyzing" | null;
+
+const STEPS = ["Upload CV", "Review results", "Take quiz"] as const;
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/* ---------- Step indicator ---------- */
+function StepIndicator({ activeIndex }: { activeIndex: number }) {
+  return (
+    <div className="flex items-center justify-center gap-2 mb-8" aria-label="Progress">
+      {STEPS.map((label, i) => {
+        const isDone = i < activeIndex;
+        const isActive = i === activeIndex;
+        return (
+          <div key={label} className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <div
+                className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold shrink-0 transition-colors ${
+                  isDone
+                    ? "bg-primary text-primary-foreground"
+                    : isActive
+                    ? "border-2 border-primary text-primary"
+                    : "border-2 border-muted-foreground/30 text-muted-foreground/60"
+                }`}
+                aria-current={isActive ? "step" : undefined}
+              >
+                {isDone ? <CheckCircle className="w-4 h-4" /> : i + 1}
+              </div>
+              <span
+                className={`text-sm hidden sm:inline ${
+                  isActive ? "font-medium text-foreground" : "text-muted-foreground"
+                }`}
+              >
+                {label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className={`w-6 sm:w-10 h-px ${isDone ? "bg-primary" : "bg-muted-foreground/30"}`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function UploadPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [state, setState] = useState<UploadState>("idle");
+  const [stage, setStage] = useState<UploadStage>(null);
   const [serverFileName, setServerFileName] = useState<string>("");
   const [cvId, setCvId] = useState<string | number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +105,12 @@ export default function UploadPage() {
       toast({ title: "Invalid file", description: "Only PDF is supported.", variant: "destructive" });
       return;
     }
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadedFile(null);
+      setError("That file is over the 10MB limit.");
+      toast({ title: "File too large", description: "Please upload a PDF under 10MB.", variant: "destructive" });
+      return;
+    }
     setUploadedFile(file);
     setError(null);
   };
@@ -47,9 +118,10 @@ export default function UploadPage() {
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
+    if (state === "uploading") return;
     const files = Array.from(e.dataTransfer.files);
     onPick(files[0]);
-  }, []);
+  }, [state]);
 
   /* ---------- File Dialog via ref ---------- */
   const openFileDialog = () => {
@@ -69,6 +141,7 @@ export default function UploadPage() {
     setUploadedFile(null);
     setError(null);
     setState("idle");
+    setStage(null);
     setCvId(null);
     setServerFileName("");
   };
@@ -79,82 +152,89 @@ export default function UploadPage() {
   };
 
   const doUpload = async () => {
-  const token = localStorage.getItem("access");
-  if (!token) {
-    setState("unauth");
-    setError("You must be logged in to upload.");
-    return;
-  }
-  if (!uploadedFile) {
-    setError("Please choose a PDF to upload.");
-    return;
-  }
-
-  setState("uploading");
-  setError(null);
-
-  try {
-    // 1. Upload the CV to Django (this saves it in /api/cv/)
-    const res = await uploadCV(uploadedFile);
-    const id = res?.cv_id ?? res?.id ?? res?.cvId;
-    const name = res?.filename ?? uploadedFile.name;
-
-    if (!id) {
-      throw new Error("Upload succeeded but server did not return cv_id.");
-    }
-
-    // Save for other pages to access
-    localStorage.setItem("last_cv_id", String(id));
-    window.dispatchEvent(
-      new StorageEvent("storage", {
-        key: "last_cv_id",
-        newValue: String(id),
-      })
-    );
-
-    setCvId(id);
-    setServerFileName(name);
-
-    // 2. Ask the AI service to generate quiz questions from this CV
-    const aiData = await aiGenerateFromCVId(id);
-    // We expect something like { questions: [...] }
-    const questions = aiData?.questions ?? aiData ?? [];
-
-    // Store the questions so QuizPage can use them
-    localStorage.setItem("ai_questions", JSON.stringify(questions));
-
-    // 3. Mark upload done
-    setState("success");
-
-    toast({
-      title: "Upload & Analysis Complete!",
-      description: "Your personalized quiz is ready.",
-    });
-  } catch (e: any) {
-    const status = e?.response?.status;
-    if (status === 401 || status === 403) {
+    const token = localStorage.getItem("access");
+    if (!token) {
       setState("unauth");
-      setError("Authentication required. Please log in.");
+      setError("You must be logged in to upload.");
+      return;
+    }
+    if (!uploadedFile) {
+      setError("Please choose a PDF to upload.");
       return;
     }
 
-    const msg =
-      e?.response?.data?.error ||
-      e?.response?.data?.detail ||
-      e?.message ||
-      "Upload failed.";
+    setState("uploading");
+    setStage("uploading");
+    setError(null);
 
-    setError(msg);
-    setState("error");
+    try {
+      // 1. Upload the CV to Django (this saves it in /api/cv/)
+      const res = await uploadCV(uploadedFile);
+      const id = res?.cv_id ?? res?.id ?? res?.cvId;
+      const name = res?.filename ?? uploadedFile.name;
 
-    toast({
-      title: "Upload failed",
-      description: msg,
-      variant: "destructive",
-    });
-  }
-};
+      if (!id) {
+        throw new Error("Upload succeeded but server did not return cv_id.");
+      }
 
+      // Save for other pages to access
+      localStorage.setItem("last_cv_id", String(id));
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: "last_cv_id",
+          newValue: String(id),
+        })
+      );
+
+      setCvId(id);
+      setServerFileName(name);
+
+      // 2. Ask the AI service to generate quiz questions from this CV
+      setStage("analyzing");
+      const aiData = await aiGenerateFromCVId(id);
+      // We expect something like { questions: [...] }
+      const questions = aiData?.questions ?? aiData ?? [];
+
+      // Store the questions so QuizPage can use them
+      localStorage.setItem("ai_questions", JSON.stringify(questions));
+
+      // 3. Mark upload done
+      setState("success");
+      setStage(null);
+
+      toast({
+        title: "Upload & Analysis Complete!",
+        description: "Your personalized quiz is ready.",
+      });
+    } catch (e: any) {
+      const status = e?.response?.status;
+      if (status === 401 || status === 403) {
+        setState("unauth");
+        setError("Authentication required. Please log in.");
+        setStage(null);
+        return;
+      }
+
+      const msg =
+        e?.response?.data?.error ||
+        e?.response?.data?.detail ||
+        e?.message ||
+        "Upload failed.";
+
+      setError(msg);
+      setState("error");
+      setStage(null);
+
+      toast({
+        title: "Upload failed",
+        description: msg,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const isUploading = state === "uploading";
+  const activeStepIndex = state === "success" ? 1 : 0;
 
   return (
     <div className="min-h-screen bg-gradient-hero py-8">
@@ -166,13 +246,29 @@ export default function UploadPage() {
           </p>
         </div>
 
+        {state !== "unauth" && <StepIndicator activeIndex={activeStepIndex} />}
+
         {/* Idle or uploading card */}
         {(state === "idle" || state === "uploading" || (!cvId && uploadedFile)) && (
           <Card className="shadow-large">
             <CardContent className="p-8">
               <div
-                className={`border-2 border-dashed rounded-lg p-12 text-center transition-all ${
-                  isDragging ? "border-primary bg-primary/5 scale-105" : "border-muted-foreground/25 hover:border-primary/50"
+                role="button"
+                tabIndex={isUploading ? -1 : 0}
+                aria-disabled={isUploading}
+                onClick={openFileDialog}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    openFileDialog();
+                  }
+                }}
+                className={`border-2 border-dashed rounded-lg p-12 text-center transition-all cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${
+                  isUploading
+                    ? "opacity-60 cursor-not-allowed pointer-events-none"
+                    : isDragging
+                    ? "border-primary bg-primary/5 scale-105"
+                    : "border-muted-foreground/25 hover:border-primary/50"
                 }`}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -180,7 +276,7 @@ export default function UploadPage() {
               >
                 <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
                 <h3 className="text-xl font-semibold mb-2">Drag & drop your CV here</h3>
-                <p className="text-muted-foreground mb-6">or click to browse files</p>
+                <p className="text-muted-foreground mb-6">or click anywhere in this box to browse files</p>
 
                 {/* Hidden input triggered via ref click */}
                 <input
@@ -193,36 +289,66 @@ export default function UploadPage() {
                   tabIndex={-1}
                 />
 
-                {/* Button that opens the file dialog */}
-                <div className="inline-flex">
-                  <Button variant="hero" size="lg" className="gap-2" onClick={openFileDialog} disabled={state === "uploading"}>
-                    <Upload className="w-4 h-4" />
-                    {state === "uploading" ? "Uploading…" : "Select CV"}
-                  </Button>
-                </div>
-
                 {uploadedFile && (
-                  <div className="mt-6 flex items-center justify-center gap-2 text-muted-foreground">
-                    <FileText className="w-5 h-5" />
-                    <span>
-                      Selected: <strong>{uploadedFile.name}</strong>
+                  <div
+                    className="mb-6 flex items-center justify-center gap-3 text-sm bg-muted/50 rounded-md py-2 px-4 mx-auto max-w-fit"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <FileText className="w-5 h-5 text-muted-foreground shrink-0" />
+                    <span className="text-left">
+                      <strong>{uploadedFile.name}</strong>
+                      <span className="text-muted-foreground"> · {formatFileSize(uploadedFile.size)}</span>
                     </span>
+                    {!isUploading && (
+                      <button
+                        type="button"
+                        className="text-primary text-xs underline underline-offset-2 hover:text-primary/80"
+                        onClick={openFileDialog}
+                      >
+                        Change file
+                      </button>
+                    )}
                   </div>
                 )}
 
-                <p className="text-sm text-muted-foreground mt-4">Supports PDF files up to 10MB</p>
+                <p className="text-sm text-muted-foreground mb-6">Supports PDF files up to 10MB</p>
 
-                <div className="mt-6">
-                  <Button
-                    variant="hero"
-                    size="lg"
-                    className="gap-2"
-                    onClick={doUpload}
-                    disabled={!uploadedFile || state === "uploading"}
-                  >
-                    <ArrowRight className="w-4 h-4" />
-                    {state === "uploading" ? "Uploading…" : "Upload CV"}
-                  </Button>
+                {/* Single primary action: submits the file and moves to the next screen */}
+                <div onClick={(e) => e.stopPropagation()}>
+                  {!uploadedFile ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        {/* span wrapper so the tooltip still works on a disabled button */}
+                        <span className="inline-block">
+                          <Button variant="hero" size="lg" className="gap-2" disabled>
+                            <ArrowRight className="w-4 h-4" />
+                            Upload CV
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>Please choose a PDF above to continue</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Button
+                      variant="hero"
+                      size="lg"
+                      className="gap-2"
+                      onClick={doUpload}
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          {stage === "analyzing" ? "Analyzing your CV…" : "Uploading…"}
+                        </>
+                      ) : (
+                        <>
+                          <ArrowRight className="w-4 h-4" />
+                          Upload CV
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
 
                 {error && <div className="text-red-600 text-sm mt-4">{error}</div>}
@@ -235,20 +361,21 @@ export default function UploadPage() {
         {state === "success" && (
           <Card className="shadow-medium animate-fade-in">
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="flex items-center space-x-2">
-                  <CheckCircle className="w-5 h-5 text-success" />
-                  <span>Upload Successful!</span>
-                </span>
-                <Button variant="ghost" size="sm" onClick={resetUpload}>
-                  <X className="w-4 h-4" />
-                </Button>
+              <CardTitle className="flex items-center space-x-2">
+                <CheckCircle className="w-5 h-5 text-success" />
+                <span>Upload Successful!</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2 text-muted-foreground">
-                <FileText className="w-5 h-5" />
-                <span>{serverFileName || uploadedFile?.name}</span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center space-x-2 text-muted-foreground">
+                  <FileText className="w-5 h-5" />
+                  <span>{serverFileName || uploadedFile?.name}</span>
+                </div>
+                <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground" onClick={resetUpload}>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Upload a different CV
+                </Button>
               </div>
               <div className="text-center pt-4">
                 <Button variant="hero" size="lg" className="gap-2" onClick={startQuiz}>
