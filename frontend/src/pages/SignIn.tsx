@@ -25,7 +25,6 @@ export default function SignIn() {
     }
 
     try {
-      // ✅ Real backend login
       const res = await login(username, password);
 
       if (res?.access) {
