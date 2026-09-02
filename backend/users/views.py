@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView as SimpleJWTRefreshView
-from .serializers import UserSerializer
+from .serializers import UserSerializer, RegisterSerializer
 
 
 
@@ -14,35 +14,37 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        username = request.data.get("username")
-        name = request.data.get("name")
-        password = request.data.get("password")
-        confirm_password = request.data.get("confirm_password")
+        data = {
+            "username": request.data.get("username"),
+            "first_name": request.data.get("name"),
+            "password": request.data.get("password"),
+            "confirm_password": request.data.get("confirm_password"),
+        }
 
-        if not all([username, name, password, confirm_password]):
-            return Response({"error": "All fields are required."}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = RegisterSerializer(data=data)
 
-        if password != confirm_password:
-            return Response({"error": "Passwords do not match."}, status=status.HTTP_400_BAD_REQUEST)
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        if User.objects.filter(username=username).exists():
-            return Response({"error": "Username already exists."}, status=status.HTTP_400_BAD_REQUEST)
-
-        user = User.objects.create_user(username=username, password=password, first_name=name)
+        user = serializer.save()
 
         refresh = RefreshToken.for_user(user)
-        access_token = str(refresh.access_token)
-        refresh_token = str(refresh)
 
-        return Response({
-            "message": "User registered successfully.",
-            "username": user.username,
-            "name": user.first_name,
-            "tokens": {
-                "access": access_token,
-                "refresh": refresh_token
-            }
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "message": "User registered successfully.",
+                "username": user.username,
+                "name": user.first_name,
+                "tokens": {
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 
