@@ -1,174 +1,522 @@
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-from cv.models import CV  # adjust if your model name/app differs
-from .ai_logic import extract_text_from_pdf, generate_questions_from_cv
 import json
 
+from django.db import transaction
 
-@csrf_exempt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from cv.models import CV
+from quiz.models import Quiz, Question, Result
+
+from .ai_logic import extract_text_from_pdf, generate_questions_from_cv
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def generate_questions_view(request):
     """
-    POST:
-      JSON:  { "cv_id": <int> }  -> uses a server-stored CV file
-      OR multipart/form-data with file under one of:
-          'cv' | 'file' | 'pdf' | 'cv_file' | 'resume' | 'document'
-    RESP: { "questions": [ {question, options?, skill?, category?}, ... ] }
+    Generate quiz questions from a stored CV or uploaded PDF.
+
+    Accepts:
+        JSON:
+            {
+                "cv_id": <int>
+            }
+
+        OR multipart/form-data with a file under:
+            cv
+            file
+            pdf
+            cv_file
+            resume
+            document
+
+    Returns:
+        {
+            "quiz_id": <int>,
+            "questions": [...]
+        }
     """
-    if request.method != "POST":
-        return JsonResponse({"error": "Invalid request method."}, status=400)
 
     cv_file = None
 
-    # Try JSON body with cv_id
-    try:
-        if request.content_type and "application/json" in request.content_type:
-            body = request.body.decode("utf-8") or "{}"
-            data = json.loads(body)
-            cv_id = data.get("cv_id")
-            if cv_id is not None:
-                try:
-                    obj = CV.objects.get(pk=cv_id)
-                    cv_file = obj.file  # FileField
-                except CV.DoesNotExist:
-                    return JsonResponse({"error": "CV not found."}, status=404)
-    except Exception:
-        # Fall back to file upload
-        pass
+    # --------------------------------------------------
+    # 1. Try to use an already stored CV
+    # --------------------------------------------------
 
-    # Try multipart with a file under common keys
+    cv_id = request.data.get("cv_id")
+
+    if cv_id is not None:
+        try:
+            cv = CV.objects.get(
+                pk=cv_id,
+                user=request.user,
+            )
+
+            cv_file = cv.file
+
+        except CV.DoesNotExist:
+            return Response(
+                {"error": "CV not found."},
+                status=404,
+            )
+
+    # --------------------------------------------------
+    # 2. Otherwise try a directly uploaded file
+    # --------------------------------------------------
+
     if cv_file is None:
-        for key in ["cv", "file", "pdf", "cv_file", "resume", "document"]:
+        allowed_file_keys = [
+            "cv",
+            "file",
+            "pdf",
+            "cv_file",
+            "resume",
+            "document",
+        ]
+
+        for key in allowed_file_keys:
             if key in request.FILES:
                 cv_file = request.FILES[key]
                 break
-        if not cv_file:
-            return JsonResponse(
-                {"error": "Please upload a valid PDF file or provide cv_id."},
-                status=400,
-            )
 
-    # Extract text & generate questions
+    if not cv_file:
+        return Response(
+            {
+                "error": (
+                    "Please upload a valid PDF file "
+                    "or provide cv_id."
+                )
+            },
+            status=400,
+        )
+
     try:
+        # --------------------------------------------------
+        # 3. Extract CV text
+        # --------------------------------------------------
+
         text = extract_text_from_pdf(cv_file)
+
+        # --------------------------------------------------
+        # 4. Generate questions using AI
+        # --------------------------------------------------
+
         questions = generate_questions_from_cv(text)
+
+        # Ensure AI response becomes list[dict]
         questions = _normalize_questions(questions)
 
-        #  Add inferred skill + category if missing
-        for q in questions:
-            qtext = q.get("question", "")
-            if "skill" not in q or not q.get("skill"):
-                skill = _infer_skill_from_question(qtext)
-                q["skill"] = skill
-                q["category"] = (
+        if not questions:
+            return Response(
+                {"error": "No questions were generated."},
+                status=502,
+            )
+
+        # --------------------------------------------------
+        # 5. Add missing skill/category information
+        # --------------------------------------------------
+
+        for question in questions:
+            question_text = question.get(
+                "question",
+                "",
+            )
+
+            if not question.get("skill"):
+                skill = _infer_skill_from_question(
+                    question_text
+                )
+
+                question["skill"] = skill
+
+                question["category"] = (
                     "soft"
-                    if skill in ["Communication", "Project Management"]
+                    if skill
+                    in [
+                        "Communication",
+                        "Project Management",
+                    ]
                     else "technical"
                 )
 
-        return JsonResponse({"questions": questions}, status=200, safe=False)
+        # --------------------------------------------------
+        # 6. Save Quiz + Questions
+        # --------------------------------------------------
 
-    except Exception as e:
-        return JsonResponse(
-            {"error": f"Failed to generate questions: {e}"}, status=500
+        with transaction.atomic():
+            quiz = Quiz.objects.create(
+                user=request.user,
+                title="CV Quiz",
+            )
+
+            question_objects = []
+
+            for question in questions:
+                correct_index = question.get(
+                    "correct_index"
+                )
+
+                correct_answer = (
+                    str(correct_index)
+                    if isinstance(correct_index, int)
+                    and 0 <= correct_index <= 3
+                    else ""
+                )
+
+                question_objects.append(
+                    Question(
+                        quiz=quiz,
+                        text=question.get(
+                            "question",
+                            "",
+                        ),
+                        options=question.get(
+                            "options",
+                            [],
+                        ),
+                        correct_answer=correct_answer,
+                        skill=question.get(
+                            "skill",
+                            "",
+                        ),
+                        category=question.get(
+                            "category",
+                            "",
+                        ),
+                        difficulty=question.get(
+                            "difficulty",
+                            "",
+                        ),
+                    )
+                )
+
+            saved_questions = (
+                Question.objects.bulk_create(
+                    question_objects
+                )
+            )
+
+        # --------------------------------------------------
+        # 7. Return real database IDs to frontend
+        # --------------------------------------------------
+
+        response_questions = []
+
+        for question, db_question in zip(
+            questions,
+            saved_questions,
+        ):
+            item = dict(question)
+
+            item["id"] = db_question.id
+
+            response_questions.append(item)
+
+        return Response(
+            {
+                "quiz_id": quiz.id,
+                "questions": response_questions,
+            },
+            status=200,
+        )
+
+    except Exception as exc:
+        return Response(
+            {
+                "error": (
+                    f"Failed to generate questions: "
+                    f"{exc}"
+                )
+            },
+            status=500,
         )
 
 
-@csrf_exempt
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def submit_answers_view(request):
     """
-    POST /api/ai/submit/
-    Body: { "answers": [ { "question": "...", "answer": 1, "correct_index": 1, "skill": "Python", "category": "technical" } ] }
-    Returns: overall score + per-skill results.
+    Submit answers for a saved quiz.
+
+    Expected body:
+    {
+        "quiz_id": 2,
+        "answers": [
+            {
+                "question_id": 20,
+                "answer": 0
+            },
+            {
+                "question_id": 21,
+                "answer": 2
+            }
+        ]
+    }
+
+    Returns:
+    {
+        "quiz_id": 2,
+        "result_id": 1,
+        "overall": 80,
+        "skills": [...]
+    }
     """
-    if request.method != "POST":
-        return JsonResponse({"error": "Invalid request method."}, status=400)
 
     try:
-        data = json.loads(request.body.decode("utf-8") or "{}")
-        answers = data.get("answers", [])
+        quiz_id = request.data.get("quiz_id")
+        answers = request.data.get("answers", [])
+
+        if not quiz_id:
+            return Response(
+                {"error": "quiz_id is required."},
+                status=400,
+            )
+
+        if not isinstance(answers, list):
+            return Response(
+                {"error": "answers must be a list."},
+                status=400,
+            )
+
+        # Make sure this quiz belongs to the logged-in user.
+        try:
+            quiz = Quiz.objects.get(
+                id=quiz_id,
+                user=request.user,
+            )
+        except Quiz.DoesNotExist:
+            return Response(
+                {"error": "Quiz not found."},
+                status=404,
+            )
+
+        # Load all questions for this quiz once.
+        quiz_questions = {
+            question.id: question
+            for question in Question.objects.filter(
+                quiz=quiz
+            )
+        }
 
         correct = 0
         total = 0
         per_skill = {}
 
-        for a in answers:
-            skill = a.get("skill", "General")
-            cat = a.get("category", "technical")
+        for answer_data in answers:
+            question_id = answer_data.get(
+                "question_id"
+            )
+            user_answer = answer_data.get(
+                "answer"
+            )
+
+            question = quiz_questions.get(
+                question_id
+            )
+
+            # Ignore IDs that do not belong to this quiz.
+            if question is None:
+                continue
+
+            skill = question.skill or "General"
+            category = (
+                question.category
+                or "technical"
+            )
 
             if skill not in per_skill:
-                per_skill[skill] = {"sum": 0, "count": 0, "category": cat}
+                per_skill[skill] = {
+                    "sum": 0,
+                    "count": 0,
+                    "category": category,
+                }
 
-            user_answer = a.get("answer")
-            correct_index = a.get("correct_index")
+            # Current VeriCV questions are MCQs.
+            if isinstance(user_answer, int):
+                try:
+                    correct_index = int(
+                        question.correct_answer
+                    )
+                except (
+                    TypeError,
+                    ValueError,
+                ):
+                    continue
 
-            if isinstance(user_answer, int) and isinstance(correct_index, int):
                 total += 1
+
                 if user_answer == correct_index:
                     correct += 1
-                    per_skill[skill]["sum"] += 100
+                    question_score = 100
                 else:
-                    per_skill[skill]["sum"] += 0
-                per_skill[skill]["count"] += 1
-            else:
-                # For open-ended or text answers, give neutral score
-                per_skill[skill]["sum"] += 70
+                    question_score = 0
+
+                per_skill[skill]["sum"] += (
+                    question_score
+                )
                 per_skill[skill]["count"] += 1
 
-        overall = round((correct / total) * 100) if total else 70
+        overall = (
+            round(
+                (correct / total) * 100
+            )
+            if total
+            else 0
+        )
+
         skills = [
             {
-                "skill": s,
-                "score": round(v["sum"] / max(v["count"], 1)),
-                "category": v["category"],
+                "skill": skill,
+                "score": round(
+                    values["sum"]
+                    / max(
+                        values["count"],
+                        1,
+                    )
+                ),
+                "category": values[
+                    "category"
+                ],
             }
-            for s, v in per_skill.items()
+            for skill, values
+            in per_skill.items()
         ]
 
-        return JsonResponse({"overall": overall, "skills": skills}, status=200)
+        # Save one result for this quiz/user.
+        existing_result = (
+            Result.objects
+            .filter(
+                quiz=quiz,
+                user=request.user,
+            )
+            .first()
+        )
 
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        if existing_result:
+            existing_result.score = overall
+            existing_result.save(
+                update_fields=["score"]
+            )
+            result = existing_result
+        else:
+            result = Result.objects.create(
+                quiz=quiz,
+                user=request.user,
+                score=overall,
+            )
+
+        return Response(
+            {
+                "quiz_id": quiz.id,
+                "result_id": result.id,
+                "overall": overall,
+                "skills": skills,
+            },
+            status=200,
+        )
+
+    except Exception as exc:
+        return Response(
+            {"error": str(exc)},
+            status=500,
+        )
 
 
-# -----------------
+# --------------------------------------------------
 # Helpers
-# -----------------
+# --------------------------------------------------
+
+
 def _normalize_questions(raw):
-    """Accepts dict/list/JSON-string and returns list[dict]."""
+    """
+    Convert different AI response formats
+    into list[dict].
+    """
+
     if raw is None:
         return []
+
     if isinstance(raw, list):
         return raw
+
     if isinstance(raw, dict):
-        if isinstance(raw.get("questions"), list):
+        if isinstance(
+            raw.get("questions"),
+            list,
+        ):
             return raw["questions"]
-        if isinstance(raw.get("data"), list):
+
+        if isinstance(
+            raw.get("data"),
+            list,
+        ):
             return raw["data"]
+
         return []
+
     if isinstance(raw, str):
         try:
             parsed = json.loads(raw)
-            return _normalize_questions(parsed)
+
+            return _normalize_questions(
+                parsed
+            )
+
         except Exception:
-            return [{"question": raw}]
+            return [
+                {
+                    "question": raw
+                }
+            ]
+
     return []
 
 
-def _infer_skill_from_question(q: str) -> str:
-    """Basic keyword mapping to keep Results UI consistent."""
-    s = (q or "").lower()
-    if "react" in s:
+def _infer_skill_from_question(question):
+    """
+    Infer a basic skill from question keywords.
+
+    Used only when the AI response does not
+    already contain a skill.
+    """
+
+    text = (
+        question or ""
+    ).lower()
+
+    if "react" in text:
         return "React"
-    if "python" in s:
+
+    if "python" in text:
         return "Python"
-    if "sql" in s or "database" in s:
+
+    if (
+        "sql" in text
+        or "database" in text
+    ):
         return "SQL"
-    if "project management" in s or "manager" in s:
+
+    if (
+        "project management" in text
+        or "manager" in text
+    ):
         return "Project Management"
-    if "communication" in s or "team" in s:
+
+    if (
+        "communication" in text
+        or "team" in text
+    ):
         return "Communication"
-    if "marketing" in s:
+
+    if "marketing" in text:
         return "Marketing"
-    if "budget" in s or "finance" in s:
+
+    if (
+        "budget" in text
+        or "finance" in text
+    ):
         return "Budget Management"
+
     return "General"
