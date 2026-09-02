@@ -5,13 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { register, login } from "@/api/endpoints"; // ✅ use API layer
+import { register, login } from "@/api/endpoints"; 
 
 export default function SignUp() {
   const nav = useNavigate();
-  const [name, setName] = useState("");        // kept for future profile
+  const [name, setName] = useState("");        
   const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");      // optional; include if your backend uses it
+  const [email, setEmail] = useState("");      
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,13 +36,13 @@ export default function SignUp() {
     }
 
     try {
-      // ✅ 1) Register the user
+      // Register the user
       await register({ username, password, confirm, name });
 
 
 
 
-      // ✅ 2) Auto-login after successful registration
+      // Auto login after successful registration
       const res = await login(username, password);
       if (res?.access) {
         nav("/");
